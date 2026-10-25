@@ -1,0 +1,209 @@
+rules_version = '2';
+
+// Spark plan: client access to Firestore only.
+// Admin documents cannot be created or edited from the app.
+// The Firebase console and Admin SDK bypass these rules and are used for the first admin.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function validMediaUrl(url) {
+      return url is string
+        && url.size() > 0
+        && url.size() <= 2000
+        && !url.matches('.*\\.\\..*')
+        && !url.matches('.*[\\s<>].*')
+        && (
+          url.matches('^https://.+')
+          || url.matches('^/[A-Za-z0-9].*')
+        );
+    }
+
+    function optionalMediaUrl(url) {
+      return url == '' || validMediaUrl(url);
+    }
+
+    function articleValid(data) {
+      return data.keys().hasOnly([
+          'title', 'slug', 'summary', 'content', 'categoryId', 'categorySlug',
+          'categoryName', 'author', 'imageUrl', 'seoTitle', 'seoDescription',
+          'status', 'featured', 'breaking',
+          'isDemo', 'keywords', 'publishedAt', 'createdAt', 'updatedAt', 'createdBy'
+        ])
+        && data.title is string && data.title.size() >= 8 && data.title.size() <= 180
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 80
+        && !data.slug.matches('.*[/\\s#?%].*')
+        && data.summary is string && data.summary.size() <= 400
+        && data.content is string && data.content.size() <= 100000
+        && data.categoryId is string && data.categoryId.size() >= 1 && data.categoryId.size() <= 40
+        && data.categorySlug == data.categoryId
+        && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 40
+        && data.author is string && data.author.size() >= 2 && data.author.size() <= 80
+        && optionalMediaUrl(data.imageUrl)
+        && data.seoTitle is string && data.seoTitle.size() <= 70
+        && data.seoDescription is string && data.seoDescription.size() <= 160
+        && data.status in ['draft', 'published']
+        && data.featured is bool
+        && data.breaking is bool
+        && data.isDemo is bool
+        && data.keywords is list && data.keywords.size() <= 32
+        && data.createdBy is string && data.createdBy.size() > 0 && data.createdBy.size() < 128
+        && data.updatedAt == request.time
+        && exists(/databases/$(database)/documents/categories/$(data.categoryId))
+        && get(/databases/$(database)/documents/categories/$(data.categoryId)).data.name == data.categoryName
+        && get(/databases/$(database)/documents/categories/$(data.categoryId)).data.slug == data.categorySlug
+        && (
+          (data.status == 'draft' && (data.publishedAt == null || data.publishedAt is timestamp))
+          || (data.status == 'published' && data.publishedAt is timestamp && data.summary.size() >= 20)
+        );
+    }
+
+    // Editions store a cover URL and a PDF URL. The file bytes never belong in the document.
+    function editionValid(data) {
+      return data.keys().hasOnly([
+          'issueNumber', 'title', 'description', 'coverImageUrl', 'pdfUrl',
+          'status', 'isDemo', 'publishedAt', 'createdAt', 'updatedAt'
+        ])
+        && data.issueNumber is int && data.issueNumber >= 1 && data.issueNumber <= 100000
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 120
+        && data.description is string && data.description.size() <= 500
+        && data.status in ['draft', 'published']
+        && data.isDemo is bool
+        && data.updatedAt == request.time
+        && (data.coverImageUrl == '' || validMediaUrl(data.coverImageUrl))
+        && (data.pdfUrl == '' || validMediaUrl(data.pdfUrl))
+        && (
+          (data.status == 'draft' && (data.publishedAt == null || data.publishedAt is timestamp))
+          || (
+            data.status == 'published'
+            && data.publishedAt is timestamp
+            && validMediaUrl(data.coverImageUrl)
+            && validMediaUrl(data.pdfUrl)
+            && data.description.size() >= 10
+          )
+        );
+    }
+
+    function categoryValid(data) {
+      return data.keys().hasOnly(['name', 'slug', 'description', 'order', 'showInNav'])
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 40
+        && data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 40
+        && data.slug.matches('^[a-z0-9]+(?:-[a-z0-9]+)*$')
+        && data.description is string && data.description.size() <= 300
+        && data.order is int && data.order >= 0 && data.order <= 100
+        && data.showInNav is bool;
+    }
+
+    function settingsValid(data) {
+      return data.keys().hasOnly([
+          'siteName', 'tagline', 'aboutHtml', 'contactEmail', 'contactPhone',
+          'contactAddress', 'featuredArticleIds', 'socialX', 'socialFacebook',
+          'socialInstagram', 'socialYoutube', 'updatedAt'
+        ])
+        && data.siteName is string && data.siteName.size() >= 2 && data.siteName.size() <= 60
+        && data.tagline is string && data.tagline.size() <= 80
+        && data.aboutHtml is string && data.aboutHtml.size() <= 50000
+        && data.contactEmail is string && data.contactEmail.size() <= 120
+        && data.contactPhone is string && data.contactPhone.size() <= 40
+        && data.contactAddress is string && data.contactAddress.size() <= 200
+        && data.featuredArticleIds is list && data.featuredArticleIds.size() <= 5
+        && data.socialX is string && data.socialX.size() <= 2000
+        && data.socialFacebook is string && data.socialFacebook.size() <= 2000
+        && data.socialInstagram is string && data.socialInstagram.size() <= 2000
+        && data.socialYoutube is string && data.socialYoutube.size() <= 2000
+        && (data.socialX == '' || data.socialX.matches('^https://.+'))
+        && (data.socialFacebook == '' || data.socialFacebook.matches('^https://.+'))
+        && (data.socialInstagram == '' || data.socialInstagram.matches('^https://.+'))
+        && (data.socialYoutube == '' || data.socialYoutube.matches('^https://.+'))
+        && data.updatedAt == request.time;
+    }
+
+    function messageValid(data) {
+      return data.keys().hasOnly(['name', 'email', 'message', 'fax', 'createdAt'])
+        && data.fax == ''
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 80
+        && data.email is string && data.email.size() <= 120
+        && data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && data.message is string && data.message.size() >= 10 && data.message.size() <= 2000
+        && data.createdAt == request.time;
+    }
+
+    match /articles/{articleId} {
+      allow get: if resource.data.status == 'published' || isAdmin();
+      allow list: if isAdmin() || resource.data.status == 'published';
+      allow create: if isAdmin()
+        && articleValid(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAdmin()
+        && articleValid(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAdmin();
+    }
+
+    match /editions/{editionId} {
+      allow get: if resource.data.status == 'published' || isAdmin();
+      allow list: if isAdmin() || resource.data.status == 'published';
+      allow create: if isAdmin()
+        && editionValid(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && editionValid(request.resource.data)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow create: if isAdmin()
+        && categoryValid(request.resource.data)
+        && request.resource.data.slug == categoryId;
+      allow update: if isAdmin()
+        && categoryValid(request.resource.data)
+        && request.resource.data.slug == resource.data.slug
+        && request.resource.data.slug == categoryId;
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /settings/{docId} {
+      allow get: if docId == 'site';
+      allow list: if false;
+      allow create, update: if isAdmin() && docId == 'site' && settingsValid(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /slugs/{slug} {
+      allow get, list: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['articleId'])
+        && request.resource.data.articleId is string
+        && request.resource.data.articleId.size() > 0
+        && request.resource.data.articleId.size() <= 128;
+      allow update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['articleId'])
+        && request.resource.data.articleId == resource.data.articleId;
+      allow delete: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow get, list: if isAdmin();
+      allow create: if messageValid(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}

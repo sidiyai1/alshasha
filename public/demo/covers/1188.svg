@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 840">
+  <rect width="600" height="840" fill="#FFFFFF" stroke="#E6E2D8"/>
+  <rect width="600" height="92" fill="#06452E"/>
+  <text x="570" y="58" fill="#FFFFFF" font-size="42" font-family="Tahoma, Arial, sans-serif" text-anchor="end" direction="rtl">الشاشة</text>
+  <rect y="92" width="600" height="8" fill="#C69B35"/>
+  <text x="570" y="160" fill="#06452E" font-size="22" font-family="Tahoma, Arial, sans-serif" text-anchor="end" direction="rtl">العدد 1188</text>
+  <text x="570" y="250" fill="#17211C" font-size="40" font-family="Tahoma, Arial, sans-serif" text-anchor="end" direction="rtl">موسم الصيف</text>
+  <rect x="36" y="310" width="250" height="12" fill="#E6E2D8"/>
+  <rect x="36" y="336" width="220" height="12" fill="#E6E2D8"/>
+  <rect x="314" y="310" width="250" height="12" fill="#E6E2D8"/>
+  <rect x="314" y="336" width="190" height="12" fill="#E6E2D8"/>
+  <rect x="36" y="390" width="528" height="250" fill="#F6F4EF"/>
+  <text x="300" y="760" fill="#44504A" font-size="18" font-family="Tahoma, Arial, sans-serif" text-anchor="middle" direction="rtl">غلاف تجريبي</text>
+</svg>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" role="img" aria-label="مجتمع">
+  <rect width="1200" height="750" fill="#F6F4EF"/>
+  <rect width="1200" height="18" fill="#06452E"/>
+  <circle cx="170" cy="170" r="74" fill="#C69B35"/>
+  <path d="M0 560c240-90 430 50 700-10 190-40 330 20 500-40v240H0z" fill="#06452E"/>
+  <text x="1120" y="280" fill="#06452E" font-size="84" font-family="Tahoma, Arial, sans-serif" text-anchor="end" direction="rtl">مجتمع</text>
+  <text x="1120" y="360" fill="#44504A" font-size="32" font-family="Tahoma, Arial, sans-serif" text-anchor="end" direction="rtl">صورة توضيحية للمحتوى التجريبي</text>
+</svg>
