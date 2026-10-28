@@ -84,6 +84,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 }
 
 export function navigationCategories(categories: Category[]): Category[] {
-  const source = categories.length > 0 ? categories : DEFAULT_CATEGORIES
-  return source.filter((category) => category.showInNav).sort((left, right) => left.order - right.order)
+  return [...categories]
+    .filter((category) => category.showInNav)
+    .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, 'ar'))
 }

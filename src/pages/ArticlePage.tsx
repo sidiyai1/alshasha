@@ -1,7 +1,9 @@
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { ArticleCard } from '../components/ArticleCard.tsx'
+import { PageFrame } from '../components/PageFrame.tsx'
 import { ShareBar } from '../components/ShareBar.tsx'
+import { CategoryLink, NewsImage } from '../components/StoryMeta.tsx'
 import { Alert, DemoBadge, Spinner } from '../components/ui.tsx'
 import { formatArabicDateTime } from '../lib/dates.ts'
 import { toMessage } from '../lib/errors.ts'
@@ -42,9 +44,16 @@ export function ArticlePage() {
     }
   }, [slug])
 
-  if (error) return <Alert tone="error">{error}</Alert>
+  if (error) {
+    return (
+      <PageFrame>
+        <Alert tone="error">{error}</Alert>
+      </PageFrame>
+    )
+  }
   if (missing) {
     return (
+      <PageFrame>
       <div className="space-y-4">
         <h1 className="text-3xl font-extrabold text-brand-green">الخبر غير موجود</h1>
         <p>ربما أُزيل أو أن رابطه غير مكتمل.</p>
@@ -52,15 +61,21 @@ export function ArticlePage() {
           العودة إلى الرئيسية
         </Link>
       </div>
+      </PageFrame>
     )
   }
-  if (!article) return <Spinner label="جارٍ فتح الخبر" />
+  if (!article) {
+    return (
+      <PageFrame>
+        <Spinner label="جارٍ فتح الخبر" />
+      </PageFrame>
+    )
+  }
 
   return (
+    <PageFrame>
     <article className="mx-auto max-w-3xl">
-      <p className="text-sm font-bold text-brand-gold">
-        <Link to={`/category/${article.categorySlug}`}>{article.categoryName}</Link>
-      </p>
+      <CategoryLink name={article.categoryName} slug={article.categorySlug} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <h1 className="text-3xl font-extrabold leading-snug md:text-5xl">{article.title}</h1>
       </div>
@@ -78,7 +93,13 @@ export function ArticlePage() {
         <ShareBar title={article.title} />
       </div>
       {article.imageUrl ? (
-        <img src={article.imageUrl} alt={article.title} className="mt-6 aspect-[16/9] w-full border border-brand-line bg-brand-cream object-contain" />
+        <NewsImage
+          src={article.imageUrl}
+          alt={article.title}
+          width={1400}
+          priority
+          className="mt-6 max-h-[42rem] w-full border border-brand-line bg-brand-cream object-contain"
+        />
       ) : null}
       <div className="article-body mt-8" dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }} />
       {related.length > 0 ? (
@@ -92,5 +113,6 @@ export function ArticlePage() {
         </section>
       ) : null}
     </article>
+    </PageFrame>
   )
 }

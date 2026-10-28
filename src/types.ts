@@ -20,6 +20,7 @@ export interface Article {
   categoryName: string
   author: string
   imageUrl: string
+  imagePublicId: string
   seoTitle: string
   seoDescription: string
   status: ArticleStatus
@@ -39,7 +40,9 @@ export interface Edition {
   title: string
   description: string
   coverImageUrl: string
+  coverPublicId: string
   pdfUrl: string
+  pdfPublicId: string
   status: ArticleStatus
   isDemo: boolean
   publishedAt: Date | null
@@ -82,8 +85,11 @@ export interface Page<T> {
 
 export interface HomeStories {
   featured: Article | null
+  slides: Article[]
   side: Article[]
   latest: Article[]
+  latestHasMore: boolean
+  latestCursor: PageCursor | null
   breaking: Article[]
   editions: Edition[]
 }
@@ -103,6 +109,7 @@ export interface ArticleInput {
   categoryId: string
   author: string
   imageUrl: string
+  imagePublicId: string
   seoTitle: string
   seoDescription: string
   publishedAt: string
@@ -116,7 +123,9 @@ export interface EditionInput {
   title: string
   description: string
   coverImageUrl: string
+  coverPublicId: string
   pdfUrl: string
+  pdfPublicId: string
   publishedAt: string
   status: ArticleStatus
 }

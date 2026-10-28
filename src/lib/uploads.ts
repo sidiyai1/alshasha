@@ -1,10 +1,9 @@
 /**
- * Direct uploads stay off until a signer outside this browser can issue a
- * one-time upload. Do not place a storage secret or an unsigned upload preset
- * in frontend code, and do not enable Firebase Storage on the Spark plan.
+ * Uploads go through the external Cloudflare signer. The Cloudinary API secret
+ * stays there. This flag does not enable Firebase Storage.
  */
 export function secureUploadsConfigured(): boolean {
-  return false
+  return true
 }
 
 export const PDF_MAX_BYTES = 25 * 1024 * 1024

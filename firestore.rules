@@ -30,10 +30,17 @@ service cloud.firestore {
       return url == '' || validMediaUrl(url);
     }
 
+    function optionalPublicId(value) {
+      return value is string
+        && value.size() <= 255
+        && !value.matches('.*\\.\\..*')
+        && !value.matches('.*[\\s<>].*');
+    }
+
     function articleValid(data) {
       return data.keys().hasOnly([
           'title', 'slug', 'summary', 'content', 'categoryId', 'categorySlug',
-          'categoryName', 'author', 'imageUrl', 'seoTitle', 'seoDescription',
+          'categoryName', 'author', 'imageUrl', 'imagePublicId', 'seoTitle', 'seoDescription',
           'status', 'featured', 'breaking',
           'isDemo', 'keywords', 'publishedAt', 'createdAt', 'updatedAt', 'createdBy'
         ])
@@ -47,6 +54,7 @@ service cloud.firestore {
         && data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 40
         && data.author is string && data.author.size() >= 2 && data.author.size() <= 80
         && optionalMediaUrl(data.imageUrl)
+        && (!data.keys().hasAny(['imagePublicId']) || optionalPublicId(data.imagePublicId))
         && data.seoTitle is string && data.seoTitle.size() <= 70
         && data.seoDescription is string && data.seoDescription.size() <= 160
         && data.status in ['draft', 'published']
@@ -68,7 +76,7 @@ service cloud.firestore {
     // Editions store a cover URL and a PDF URL. The file bytes never belong in the document.
     function editionValid(data) {
       return data.keys().hasOnly([
-          'issueNumber', 'title', 'description', 'coverImageUrl', 'pdfUrl',
+          'issueNumber', 'title', 'description', 'coverImageUrl', 'coverPublicId', 'pdfUrl', 'pdfPublicId',
           'status', 'isDemo', 'publishedAt', 'createdAt', 'updatedAt'
         ])
         && data.issueNumber is int && data.issueNumber >= 1 && data.issueNumber <= 100000
@@ -79,6 +87,8 @@ service cloud.firestore {
         && data.updatedAt == request.time
         && (data.coverImageUrl == '' || validMediaUrl(data.coverImageUrl))
         && (data.pdfUrl == '' || validMediaUrl(data.pdfUrl))
+        && (!data.keys().hasAny(['coverPublicId']) || optionalPublicId(data.coverPublicId))
+        && (!data.keys().hasAny(['pdfPublicId']) || optionalPublicId(data.pdfPublicId))
         && (
           (data.status == 'draft' && (data.publishedAt == null || data.publishedAt is timestamp))
           || (

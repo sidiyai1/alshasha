@@ -7,7 +7,9 @@ export function toEditionInput(edition: Edition, status: ArticleStatus = edition
     title: edition.title,
     description: edition.description,
     coverImageUrl: edition.coverImageUrl,
+    coverPublicId: edition.coverPublicId,
     pdfUrl: edition.pdfUrl,
+    pdfPublicId: edition.pdfPublicId,
     publishedAt: toDateTimeLocal(edition.publishedAt),
     status,
   }

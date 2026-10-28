@@ -150,10 +150,12 @@ export function ConfirmDialog({
   )
 }
 
-export function SectionTitle({ title, action }: { title: string; action?: ReactNode }) {
+export function SectionTitle({ title, action, id }: { title: string; action?: ReactNode; id?: string }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4 border-b border-brand-line pb-2">
-      <h2 className="text-2xl font-extrabold text-brand-green">{title}</h2>
+    <div className="mb-4 flex items-end justify-between gap-3 border-b border-brand-line">
+      <h2 id={id} className="-mb-px border-b-2 border-brand-gold pb-2 text-xl font-extrabold text-brand-green md:text-2xl">
+        {title}
+      </h2>
       {action}
     </div>
   )

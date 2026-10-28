@@ -10,6 +10,7 @@ const validArticle = (): ArticleInput => ({
   categoryId: 'siyasa',
   author: 'قسم السياسة',
   imageUrl: 'https://example.com/photo.jpg',
+  imagePublicId: '',
   seoTitle: '',
   seoDescription: '',
   publishedAt: '2026-10-25T09:00',
@@ -32,6 +33,11 @@ describe('media urls', () => {
 describe('validateArticle', () => {
   it('accepts a complete published article', () => {
     expect(validateArticle(validArticle())).toEqual({})
+  })
+
+  it('rejects a public id that could change the stored path', () => {
+    const errors = validateArticle({ ...validArticle(), imagePublicId: '../other' })
+    expect(errors.imageUrl).toBeTruthy()
   })
 
   it('requires a date and a real summary before publishing', () => {

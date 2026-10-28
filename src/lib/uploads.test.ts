@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { PDF_MAX_BYTES, secureUploadsConfigured, validatePdfFile } from './uploads.ts'
 
 describe('pdf upload checks', () => {
-  it('keeps browser uploads disabled', () => {
-    expect(secureUploadsConfigured()).toBe(false)
+  it('uses the external signer instead of a secret in the browser', () => {
+    expect(secureUploadsConfigured()).toBe(true)
   })
 
   it('accepts a modest PDF and rejects other types and oversized files', () => {

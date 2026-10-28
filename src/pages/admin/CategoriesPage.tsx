@@ -4,6 +4,7 @@ import { useToast } from '../../context/ToastContext.tsx'
 import { toMessage } from '../../lib/errors.ts'
 import { usePageMeta } from '../../lib/meta.ts'
 import { validateCategory } from '../../lib/validators.ts'
+import { missingCategorySuggestions, type SuggestedCategory } from '../../data/suggestedCategories.ts'
 import { deleteCategory, listCategories, saveCategory } from '../../services/content.ts'
 import type { Category, CategoryInput } from '../../types.ts'
 
@@ -87,7 +88,22 @@ export function CategoriesPage() {
           ))}
         </ul>
       </div>
-      <form onSubmit={onSubmit} className="h-fit space-y-3 border border-brand-line bg-white p-4" noValidate>
+      <div className="space-y-4">
+        <SuggestedCategories
+          existing={items}
+          onChoose={(suggestion) => {
+            setEditingId(null)
+            setErrors({})
+            setInput({
+              name: suggestion.name,
+              slug: suggestion.slug,
+              description: suggestion.description,
+              order: suggestion.order,
+              showInNav: true,
+            })
+          }}
+        />
+        <form onSubmit={onSubmit} className="h-fit space-y-3 border border-brand-line bg-white p-4" noValidate>
         <h2 className="text-xl font-extrabold text-brand-green">{editingId ? 'تعديل قسم' : 'قسم جديد'}</h2>
         {errors.form ? <Alert tone="error">{errors.form}</Alert> : null}
         <Field label="الاسم" error={errors.name}>
@@ -146,6 +162,36 @@ export function CategoriesPage() {
             .catch((reason: unknown) => push('error', toMessage(reason)))
         }}
       />
+      </div>
     </div>
+  )
+}
+
+function SuggestedCategories({
+  existing,
+  onChoose,
+}: {
+  existing: Category[]
+  onChoose: (suggestion: SuggestedCategory) => void
+}) {
+  const missing = missingCategorySuggestions(existing)
+  if (missing.length === 0) return null
+  return (
+    <section className="border border-brand-line bg-white p-4">
+      <h2 className="text-lg font-extrabold text-brand-green">أقسام مقترحة</h2>
+      <p className="mt-2 text-sm leading-7 text-brand-muted">
+        تعبئة النموذج لا تحفظ القسم. راجعوا البيانات ثم اضغطوا حفظ. الأقسام الموجودة، ومنها الرياضة، لا تُكرَّر.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {missing.map((suggestion) => (
+          <li key={suggestion.slug} className="flex items-center justify-between gap-3">
+            <span className="text-sm font-bold">{suggestion.name}</span>
+            <Button type="button" variant="ghost" onClick={() => onChoose(suggestion)}>
+              تعبئة النموذج
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }

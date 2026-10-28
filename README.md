@@ -66,16 +66,18 @@ The Firebase web API key can still be used by someone to call the Auth sign-up e
 
 ## Media hosting
 
-Editors paste a cover URL, a PDF URL, and an article image URL. The public archive at `/archive` shows covers newest first, filters by year and month, and searches by issue number or a numeric date such as `2026-10-20`. Opening a cover goes to `/archive/:id`, where PDF.js reads the file in the page. If the host blocks embedding, the page keeps an external open link and a download link. PDF bytes are requested only on that page.
+Editors can paste a cover URL, a PDF URL, and an article image URL, or upload a file. The public archive at `/archive` shows covers newest first, filters by year and month, and searches by issue number or a numeric date such as `2026-10-20`. Opening a cover goes to `/archive/:id`, where PDF.js reads the file in the page. If the host blocks embedding, the page keeps an external open link and a download link. PDF bytes are requested only on that page.
 
 Accepted values:
 
-- `https://…` links to files you host elsewhere
+- `https://…` links, including a Cloudinary delivery URL
 - a same-site path such as `/demo/issue-sample.pdf` for the bundled sample
 
-Rejected values include `http://`, `javascript:`, `data:`, and paths that contain `..`. Firestore stores the URL string only. PDF bytes and base64 files are never written to a document. Deleting an archive record removes that Firestore document and leaves the external file where it is.
+Rejected values include `http://`, `javascript:`, `data:`, and paths that contain `..`. Firestore stores the URL and, after an upload, the Cloudinary public ID. PDF bytes and base64 files are never written to a document. Deleting an archive record removes that Firestore document and leaves the external file where it is.
 
-**Uploads do not work yet.** The admin form at `/admin/archives` shows URL fields only. A file picker appears only if a secure external signer is configured in code, and that switch is off. Cloudinary is not connected. Do not add an unsigned upload preset or an API secret to the frontend. A safe later design is a separate signer that holds the Cloudinary secret and returns a one-time signature. Cloud Functions cannot host that signer on Spark, because Functions require Blaze. When a signer exists somewhere else, paste the resulting `https://` URL into the existing fields.
+An administrator upload asks the Cloudflare signer for a one-time signature, then sends the file from the browser to Cloudinary. The signer URL is `https://elchacha-cloudinary-signer.it96sidiya.workers.dev`. Image and cover uploads use the signed preset `alshasha_images` and Cloudinary’s image endpoint. PDF uploads use the signed preset `alshasha_archive`. The browser does not contain the Cloudinary API secret and does not calculate the signature. Unsigned uploads are not used. Only a signed-in administrator can reach the file picker, and the signer is expected to reject every other caller.
+
+This has not been proven with an authenticated upload. The signer currently allows browser calls only from `https://elchacha.org`, so a local preview cannot complete one. Saving a Cloudinary public ID also needs the updated Firestore rules published with the site. Do not put an API secret or an unsigned preset in the frontend.
 
 The sample PDF at `public/demo/issue-sample.pdf` is a two-page technical file, not a newspaper. In-page reading of an external PDF also needs that host to send CORS headers. Without them, use the external link.
 
@@ -90,7 +92,7 @@ Run this only after rules are deployed and you are signed in as an admin.
 | Collection | Who can read | Who can write |
 | --- | --- | --- |
 | `articles` | Public reads `published` only. Admins read drafts. | Admins |
-| `editions` | Public reads `published` only. Admins read drafts. | Admins. Fields are issue number, title, date, description, cover URL, PDF URL, and status. |
+| `editions` | Public reads `published` only. Admins read drafts. | Admins. Fields are issue number, title, date, description, cover URL, PDF URL, optional Cloudinary public IDs, and status. |
 | `categories` | Public | Admins. Document id is the Latin slug. |
 | `admins` | A user may read only their own document. Listing is denied. | Nobody from the client |
 | `settings/site` | Public | Admins. The document cannot store roles. |

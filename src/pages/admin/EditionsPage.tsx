@@ -65,7 +65,7 @@ export function EditionsPage() {
         </Link>
       </div>
       <Alert>
-        أدخلوا رابط الغلاف ورابط ملف PDF. الرفع المباشر غير مفعّل. حذف السجل لا يحذف الملف من مستضيفه، ولا يُحفظ الملف داخل Firestore.
+        ارفعوا الغلاف أو ملف PDF من صفحة العدد، أو الصقوا رابطاً. حذف السجل لا يحذف الملف من مستضيفه، ولا يُحفظ الملف داخل Firestore.
       </Alert>
       <div className="flex gap-2">
         {(['all', 'published', 'draft'] as const).map((value) => (

@@ -8,6 +8,7 @@
   --color-brand-muted: #44504a;
   --color-brand-line: #e6e2d8;
   --color-brand-cream: #f6f4ef;
+  --color-brand-breaking: #c62828;
   --font-sans: "Cairo", "Noto Naskh Arabic", sans-serif;
   --font-body: "Noto Naskh Arabic", "Cairo", serif;
 }
@@ -19,6 +20,7 @@
 
   body {
     margin: 0;
+    overflow-x: clip;
     background: #fff;
     color: var(--color-brand-ink);
     font-family: var(--font-sans);
@@ -70,6 +72,15 @@
   text-underline-offset: 3px;
 }
 
+.article-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+  object-fit: contain;
+  background: var(--color-brand-cream);
+}
+
 .article-body blockquote {
   margin: 1.4rem 0;
   border-right: 4px solid var(--color-brand-gold);
@@ -88,6 +99,7 @@
 }
 
 .ticker-viewport {
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -97,7 +109,9 @@
 }
 
 .ticker-viewport:hover .ticker-track,
-.ticker-viewport:focus-within .ticker-track {
+.ticker-viewport:focus-within .ticker-track,
+.ticker-viewport:active .ticker-track,
+.ticker-viewport.is-paused .ticker-track {
   animation-play-state: paused;
 }
 

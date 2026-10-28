@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArticleCard } from '../components/ArticleCard.tsx'
+import { PageFrame } from '../components/PageFrame.tsx'
 import { Alert, Button, EmptyState, Spinner, TextInput } from '../components/ui.tsx'
 import { toMessage } from '../lib/errors.ts'
 import { usePageMeta } from '../lib/meta.ts'
@@ -62,7 +63,7 @@ export function SearchPage() {
   }
 
   return (
-    <div>
+    <PageFrame>
       <h1 className="text-4xl font-extrabold text-brand-green">بحث</h1>
       <p className="mt-3 max-w-2xl leading-8 text-brand-muted">
         اكتبوا كلمة من العنوان أو الموجز. الموقع لا يحمّل كل الأخبار ثم يبحث فيها، بل يسأل Firestore عن كلمة مفتاحية واحدة ثم يضيق النتائج محلياً.
@@ -104,6 +105,6 @@ export function SearchPage() {
           </div>
         ) : null}
       </div>
-    </div>
+    </PageFrame>
   )
 }

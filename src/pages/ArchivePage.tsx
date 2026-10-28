@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { EditionCard } from '../components/EditionCard.tsx'
+import { PageFrame } from '../components/PageFrame.tsx'
 import { Alert, Button, EmptyState, SelectInput, Spinner, TextInput } from '../components/ui.tsx'
 import { LIMITS } from '../config.ts'
 import { ARABIC_MONTHS, archiveYears, resolveEditionBounds } from '../lib/archiveQuery.ts'
@@ -10,7 +11,7 @@ import { listPublishedEditions } from '../services/content.ts'
 import type { Edition, PageCursor } from '../types.ts'
 
 export function ArchivePage() {
-  usePageMeta('أرشيف الجريدة', 'أغلفة أعداد الشاشة، مع التصفية بالسنة والشهر والبحث برقم العدد أو التاريخ.')
+  usePageMeta('أرشيف الجريدة الورقية', 'أغلفة أعداد الشاشة الورقية، مع التصفية بالسنة والشهر والبحث برقم العدد أو التاريخ.')
   const [searchParams, setSearchParams] = useSearchParams()
   const yearParam = searchParams.get('year') ?? ''
   const monthParam = searchParams.get('month') ?? ''
@@ -91,11 +92,11 @@ export function ArchivePage() {
   }
 
   return (
-    <div>
-      <p className="text-sm font-bold text-brand-gold">النسخة المطبوعة</p>
-      <h1 className="mt-1 text-4xl font-extrabold text-brand-green">أرشيف الجريدة</h1>
+    <PageFrame>
+      <p className="text-sm font-bold text-brand-gold">النسخة الورقية</p>
+      <h1 className="mt-1 text-3xl font-extrabold text-brand-green md:text-4xl">أرشيف الجريدة الورقية</h1>
       <p className="mt-3 max-w-2xl leading-8 text-brand-muted">
-        الأعداد مرتبة من الأحدث. افتحوا الغلاف لقراءة العدد داخل الموقع، أو نزّلوه من صفحة العدد. الملفات نفسها تبقى عند مستضيفها.
+        الأعداد مرتبة من الأحدث. اقرأوا العدد داخل الموقع، أو حمّلوا ملف PDF. الملف لا يُجلب إلا عند فتح العدد أو تنزيله.
       </p>
       <form onSubmit={onSubmit} className="mt-6 grid gap-3 border border-brand-line bg-brand-cream p-4 md:grid-cols-[10rem_12rem_1fr_auto] md:items-end">
         <label className="block">
@@ -154,7 +155,7 @@ export function ArchivePage() {
         {!loading && !error && items.length === 0 ? (
           <EmptyState title="لا أعداد في هذا النطاق" body="غيّروا السنة أو الشهر، أو ابحثوا برقم عدد آخر." />
         ) : null}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
           {items.map((edition) => (
             <EditionCard key={edition.id} edition={edition} heading="h2" />
           ))}
@@ -188,6 +189,6 @@ export function ArchivePage() {
           </div>
         ) : null}
       </div>
-    </div>
+    </PageFrame>
   )
 }

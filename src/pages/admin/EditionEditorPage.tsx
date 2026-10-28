@@ -1,11 +1,12 @@
 import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { CloudinaryUpload } from '../../components/CloudinaryUpload.tsx'
 import { Alert, Button, ConfirmDialog, Field, Spinner, TextArea, TextInput } from '../../components/ui.tsx'
 import { useToast } from '../../context/ToastContext.tsx'
+import { toEditionInput } from '../../lib/editions.ts'
 import { toDateTimeLocal } from '../../lib/dates.ts'
 import { toMessage } from '../../lib/errors.ts'
 import { usePageMeta } from '../../lib/meta.ts'
-import { secureUploadsConfigured, validatePdfFile } from '../../lib/uploads.ts'
 import { useUnsavedChanges } from '../../lib/unsaved.ts'
 import { isSafeMediaUrl, validateEdition } from '../../lib/validators.ts'
 import { deleteEdition, getEdition, saveEdition } from '../../services/content.ts'
@@ -19,7 +20,9 @@ function blank(): EditionInput {
     title: '',
     description: '',
     coverImageUrl: '',
+    coverPublicId: '',
     pdfUrl: '',
+    pdfPublicId: '',
     publishedAt: '',
     status: 'draft',
   }
@@ -52,15 +55,7 @@ export function EditionEditorPage() {
           setLoading(false)
           return
         }
-        const next = {
-          issueNumber: String(edition.issueNumber),
-          title: edition.title,
-          description: edition.description,
-          coverImageUrl: edition.coverImageUrl,
-          pdfUrl: edition.pdfUrl,
-          publishedAt: toDateTimeLocal(edition.publishedAt),
-          status: edition.status,
-        }
+        const next = toEditionInput(edition)
         setInput(next)
         setBaseline(JSON.stringify(next))
         setLoading(false)
@@ -113,9 +108,7 @@ export function EditionEditorPage() {
     <form onSubmit={onSubmit} className="mx-auto max-w-2xl space-y-4" noValidate>
       <h1 className="text-3xl font-extrabold text-brand-green">{isNew ? 'إضافة عدد جديد' : 'تعديل العدد'}</h1>
       <Alert>
-        {secureUploadsConfigured()
-          ? 'الرفع يذهب إلى التخزين الخارجي المُعد فقط. Firestore يحفظ الرابط، لا ملف PDF.'
-          : 'الرفع الآمن غير مُعد. أدخلوا رابط https لصورة الغلاف ورابط ملف PDF. لا يُحفظ الملف في Firestore ولا في Firebase Storage.'}
+        ارفعوا الغلاف أو ملف PDF، أو الصقوا رابط https. Firestore يحفظ الرابط ومعرّف الملف، ولا يحفظ الملف نفسه.
       </Alert>
       {errors.form ? <Alert tone="error">{errors.form}</Alert> : null}
       <Field label="رقم العدد" error={errors.issueNumber}>
@@ -127,40 +120,38 @@ export function EditionEditorPage() {
       <Field label="الوصف" error={errors.description}>
         <TextArea value={input.description} onChange={(event) => setInput({ ...input, description: event.target.value })} />
       </Field>
-      {secureUploadsConfigured() ? (
-        <Field label="ملف PDF" hint="PDF فقط، وبحد 25 ميغابايت. الملف لا يُكتب في Firestore." error={errors.pdfFile}>
-          <TextInput
-            type="file"
-            accept="application/pdf,.pdf"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              event.target.value = ''
-              if (!file) return
-              const message = validatePdfFile(file)
-              setErrors((current) => ({
-                ...current,
-                pdfFile: message ?? 'مسار الرفع الآمن غير مكتمل. استخدموا رابط الملف.',
-              }))
-            }}
-          />
-        </Field>
-      ) : (
-        <>
-          <Field label="رابط صورة الغلاف" hint="رابط https أو مسار داخلي. لا يوجد زر رفع من الجهاز." error={errors.coverImageUrl}>
-            <TextInput value={input.coverImageUrl} onChange={(event) => setInput({ ...input, coverImageUrl: event.target.value })} dir="ltr" />
-          </Field>
-          <Field label="رابط ملف PDF" hint="رابط الملف فقط. لا يُلصق الملف ولا يُحوَّل إلى قاعدة البيانات." error={errors.pdfUrl}>
-            <TextInput
-              value={input.pdfUrl}
-              onChange={(event) => {
-                setShowPdf(false)
-                setInput({ ...input, pdfUrl: event.target.value })
-              }}
-              dir="ltr"
-            />
-          </Field>
-        </>
-      )}
+      <CloudinaryUpload
+        label="رفع صورة الغلاف"
+        hint="JPG أو PNG أو WebP، وبحد 8 ميغابايت."
+        type="image"
+        onUploaded={(asset) => setInput((current) => ({ ...current, coverImageUrl: asset.url, coverPublicId: asset.publicId }))}
+      />
+      <Field label="رابط صورة الغلاف" hint="رابط https أو مسار داخلي." error={errors.coverImageUrl}>
+        <TextInput
+          value={input.coverImageUrl}
+          onChange={(event) => setInput({ ...input, coverImageUrl: event.target.value, coverPublicId: '' })}
+          dir="ltr"
+        />
+      </Field>
+      <CloudinaryUpload
+        label="رفع ملف PDF"
+        hint="PDF فقط، وبحد 25 ميغابايت. الملف لا يُكتب في Firestore."
+        type="archive"
+        onUploaded={(asset) => {
+          setShowPdf(false)
+          setInput((current) => ({ ...current, pdfUrl: asset.url, pdfPublicId: asset.publicId }))
+        }}
+      />
+      <Field label="رابط ملف PDF" hint="رابط الملف فقط. لا يُلصق الملف ولا يُحوَّل إلى قاعدة البيانات." error={errors.pdfUrl}>
+        <TextInput
+          value={input.pdfUrl}
+          onChange={(event) => {
+            setShowPdf(false)
+            setInput({ ...input, pdfUrl: event.target.value, pdfPublicId: '' })
+          }}
+          dir="ltr"
+        />
+      </Field>
       {isSafeMediaUrl(input.coverImageUrl.trim()) ? (
         <figure className="border border-brand-line bg-white p-3">
           <figcaption className="mb-2 text-sm font-bold text-brand-green">معاينة الغلاف</figcaption>

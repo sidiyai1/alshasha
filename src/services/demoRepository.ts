@@ -1,5 +1,6 @@
 import { LIMITS } from '../config.ts'
 import { demoArticles, demoEditions, demoSettings, publishedArticles, publishedEditions } from '../data/demo.ts'
+import { arrangeHomeStories } from '../lib/home.ts'
 import { DEFAULT_CATEGORIES } from '../data/defaults.ts'
 import { editionWithinBounds, resolveEditionBounds } from '../lib/archiveQuery.ts'
 import { paginateItems } from '../lib/pagination.ts'
@@ -105,19 +106,17 @@ export async function getHomeStories(featuredIds: string[]): Promise<HomeStories
   const featured = featuredIds
     .map((id) => latest.find((article) => article.id === id))
     .filter((article): article is Article => Boolean(article))
-  const main = featured[0] ?? latest[0] ?? null
-  const used = new Set(main ? [main.id] : [])
-  const side: Article[] = []
-  for (const article of [...featured.slice(1), ...latest]) {
-    if (used.has(article.id)) continue
-    side.push(article)
-    used.add(article.id)
-    if (side.length === 3) break
-  }
+  const page = latest.slice(0, LIMITS.homeLatest)
+  const arranged = arrangeHomeStories(featured, page)
+  const hasMore = latest.length > page.length
+  const last = page[page.length - 1]
   return {
-    featured: main,
-    side,
-    latest: latest.filter((article) => article.id !== main?.id).slice(0, 6),
+    featured: arranged.featured,
+    slides: arranged.slides,
+    side: arranged.secondary,
+    latest: arranged.latest,
+    latestHasMore: hasMore,
+    latestCursor: hasMore && last?.publishedAt ? { value: last.publishedAt.toISOString(), id: last.id } : null,
     breaking: latest.filter((article) => article.breaking).slice(0, LIMITS.homeBreaking),
     editions: publishedEditions()
       .slice()

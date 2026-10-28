@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { PageFrame } from '../components/PageFrame.tsx'
 import { PdfReader } from '../components/PdfReader.tsx'
 import { Alert, DemoBadge, EmptyState, Spinner } from '../components/ui.tsx'
 import { formatArabicDate } from '../lib/dates.ts'
@@ -40,8 +41,11 @@ export function ArchiveReaderPage() {
   }, [id])
 
   return (
-    <div>
-      <Link className="text-sm font-bold text-brand-green underline" to="/archive">
+    <PageFrame>
+      <Link
+        to="/archive"
+        className="inline-flex items-center justify-center border border-brand-line bg-white px-4 py-2.5 text-sm font-bold text-brand-green"
+      >
         العودة إلى الأرشيف
       </Link>
       {state === 'loading' ? (
@@ -81,6 +85,6 @@ export function ArchiveReaderPage() {
           </div>
         </article>
       ) : null}
-    </div>
+    </PageFrame>
   )
 }

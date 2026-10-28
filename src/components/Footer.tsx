@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { navigationCategories } from '../data/defaults.ts'
 import type { Category, SiteSettings } from '../types.ts'
+import { pageShell } from './PageFrame.tsx'
 
 export function Footer({ categories, settings }: { categories: Category[]; settings: SiteSettings }) {
   const nav = navigationCategories(categories)
@@ -12,15 +13,18 @@ export function Footer({ categories, settings }: { categories: Category[]; setti
   ].filter((item): item is [string, string] => Boolean(item[1]))
 
   return (
-    <footer className="mt-auto bg-brand-green text-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[auto_1fr_1fr]">
-        <div className="bg-white p-3">
-          <img
-            src="/logo.jpg"
-            alt="الشاشة"
-            className="block h-auto w-auto max-h-24 max-w-64 object-contain"
-            draggable={false}
-          />
+    <footer className="mt-auto border-t-4 border-brand-gold bg-brand-green text-white">
+      <div className={`${pageShell} grid gap-8 py-10 md:grid-cols-[auto_1fr_1fr]`}>
+        <div>
+          <div className="inline-block bg-white p-3">
+            <img
+              src="/logo.jpg"
+              alt="الشاشة"
+              className="block h-auto w-auto max-h-24 max-w-64 object-contain"
+              draggable={false}
+            />
+          </div>
+          {settings.tagline ? <p className="mt-3 max-w-xs text-sm leading-7 text-brand-gold">{settings.tagline}</p> : null}
         </div>
         <div>
           <h2 className="mb-3 text-lg font-extrabold text-brand-gold">الأقسام</h2>
@@ -34,7 +38,7 @@ export function Footer({ categories, settings }: { categories: Category[]; setti
             ))}
             <li>
               <Link className="hover:text-brand-gold" to="/archive">
-                أرشيف الجريدة
+                النسخة الورقية
               </Link>
             </li>
             <li>
@@ -53,13 +57,18 @@ export function Footer({ categories, settings }: { categories: Category[]; setti
             <ul className="mt-3 flex flex-wrap gap-3">
               {social.map(([label, href]) => (
                 <li key={label}>
-                  <a className="underline decoration-brand-gold underline-offset-4" href={href} target="_blank" rel="noopener noreferrer">
+                  <a className="underline decoration-brand-gold underline-offset-4 hover:text-brand-gold" href={href} target="_blank" rel="noopener noreferrer">
                     {label}
                   </a>
                 </li>
               ))}
             </ul>
           ) : null}
+          <p className="mt-4">
+            <Link className="font-bold text-brand-gold hover:text-white" to="/contact">
+              اتصل بنا
+            </Link>
+          </p>
         </div>
       </div>
       <div className="border-t border-white/15 px-4 py-4 text-center text-sm">

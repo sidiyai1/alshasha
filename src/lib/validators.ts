@@ -14,6 +14,12 @@ export function isSafeMediaUrl(value: string): boolean {
   return HTTPS_URL.test(value) || RELATIVE_URL.test(value)
 }
 
+function invalidPublicId(value: string): boolean {
+  const id = value.trim()
+  if (!id) return false
+  return id.length > 255 || id.includes('..') || /[\s<>]/.test(id)
+}
+
 export function validateArticle(input: ArticleInput): Record<string, string> {
   const errors: Record<string, string> = {}
   const title = input.title.trim()
@@ -33,6 +39,7 @@ export function validateArticle(input: ArticleInput): Record<string, string> {
   if (input.imageUrl.trim() && !isSafeMediaUrl(input.imageUrl.trim())) {
     errors.imageUrl = 'رابط الصورة يجب أن يبدأ بـ https:// أو يكون مساراً داخلياً آمناً.'
   }
+  if (invalidPublicId(input.imagePublicId)) errors.imageUrl = 'معرّف الصورة المرفوعة غير صالح.'
   if (input.seoTitle.trim().length > 70) errors.seoTitle = 'عنوان محركات البحث يجب ألا يتجاوز 70 حرفاً.'
   if (input.seoDescription.trim().length > 160) errors.seoDescription = 'وصف محركات البحث يجب ألا يتجاوز 160 حرفاً.'
 
@@ -68,6 +75,8 @@ export function validateEdition(input: EditionInput): Record<string, string> {
   if (input.pdfUrl.trim() && !isSafeMediaUrl(input.pdfUrl.trim())) {
     errors.pdfUrl = 'رابط ملف PDF غير صالح.'
   }
+  if (invalidPublicId(input.coverPublicId)) errors.coverImageUrl = 'معرّف الغلاف المرفوع غير صالح.'
+  if (invalidPublicId(input.pdfPublicId)) errors.pdfUrl = 'معرّف ملف PDF المرفوع غير صالح.'
   if (input.status === 'published') {
     if (!input.coverImageUrl.trim()) errors.coverImageUrl = 'أدخلوا رابط غلاف العدد.'
     if (!input.pdfUrl.trim()) errors.pdfUrl = 'أدخلوا رابط ملف PDF.'

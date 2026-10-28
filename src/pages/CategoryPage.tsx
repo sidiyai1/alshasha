@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 import { ArticleCard } from '../components/ArticleCard.tsx'
+import { PageFrame } from '../components/PageFrame.tsx'
 import type { PublicContext } from '../components/PublicLayout.tsx'
 import { Alert, Button, EmptyState, Spinner } from '../components/ui.tsx'
 import { toMessage } from '../lib/errors.ts'
@@ -58,7 +59,7 @@ export function CategoryPage() {
   }
 
   return (
-    <div>
+    <PageFrame>
       <p className="text-sm font-bold text-brand-gold">قسم</p>
       <h1 className="mt-1 text-4xl font-extrabold text-brand-green">{category?.name ?? 'قسم غير موجود'}</h1>
       <p className="mt-3 max-w-2xl font-body text-lg leading-9 text-brand-muted">
@@ -83,6 +84,6 @@ export function CategoryPage() {
           </div>
         ) : null}
       </div>
-    </div>
+    </PageFrame>
   )
 }

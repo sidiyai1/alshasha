@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore'
 import { LIMITS } from '../config.ts'
 import { resolveEditionBounds } from '../lib/archiveQuery.ts'
+import { arrangeHomeStories } from '../lib/home.ts'
 import { demoArticles, demoEditions, demoSettings } from '../data/demo.ts'
 import { DEFAULT_CATEGORIES, DEFAULT_SETTINGS } from '../data/defaults.ts'
 import { getFirebaseAuth, getFirebaseDb } from '../lib/firebase.ts'
@@ -64,6 +65,7 @@ function mapArticle(id: string, data: DocumentData): Article {
     categoryName: String(data.categoryName ?? ''),
     author: String(data.author ?? ''),
     imageUrl: String(data.imageUrl ?? ''),
+    imagePublicId: String(data.imagePublicId ?? ''),
     seoTitle: String(data.seoTitle ?? ''),
     seoDescription: String(data.seoDescription ?? ''),
     status: data.status === 'published' ? 'published' : 'draft',
@@ -86,7 +88,9 @@ function mapEdition(id: string, data: DocumentData): Edition {
     title: String(data.title ?? ''),
     description: String(data.description ?? ''),
     coverImageUrl: String(data.coverImageUrl ?? ''),
+    coverPublicId: String(data.coverPublicId ?? ''),
     pdfUrl: String(data.pdfUrl ?? ''),
+    pdfPublicId: String(data.pdfPublicId ?? ''),
     status: data.status === 'published' ? 'published' : 'draft',
     isDemo: Boolean(data.isDemo),
     publishedAt: asDate(data.publishedAt),
@@ -315,21 +319,15 @@ export async function getHomeStories(featuredIds: string[]): Promise<HomeStories
   ])
 
   const picked = featured.filter((article): article is Article => Boolean(article))
-  const latest = latestPage.items
-  const main = picked[0] ?? latest[0] ?? null
-  const used = new Set(main ? [main.id] : [])
-  const side: Article[] = []
-  for (const article of [...picked.slice(1), ...latest]) {
-    if (used.has(article.id)) continue
-    side.push(article)
-    used.add(article.id)
-    if (side.length === 3) break
-  }
+  const arranged = arrangeHomeStories(picked, latestPage.items)
 
   return {
-    featured: main,
-    side,
-    latest: latest.filter((article) => article.id !== main?.id).slice(0, 6),
+    featured: arranged.featured,
+    slides: arranged.slides,
+    side: arranged.secondary,
+    latest: arranged.latest,
+    latestHasMore: latestPage.hasMore,
+    latestCursor: latestPage.nextCursor,
     breaking: breakingSnapshot.docs.map((item) => mapArticle(item.id, item.data())),
     editions: editionPage.items,
   }
@@ -443,6 +441,7 @@ export async function saveArticle(id: string | null, input: ArticleInput): Promi
       categoryName,
       author: input.author.trim(),
       imageUrl: input.imageUrl.trim(),
+      ...(input.imagePublicId.trim() ? { imagePublicId: input.imagePublicId.trim() } : {}),
       seoTitle: input.seoTitle.trim(),
       seoDescription: input.seoDescription.trim(),
       status: input.status,
@@ -525,7 +524,9 @@ export async function saveEdition(id: string | null, input: EditionInput): Promi
       title: input.title.trim(),
       description: input.description.trim(),
       coverImageUrl: input.coverImageUrl.trim(),
+      ...(input.coverPublicId.trim() ? { coverPublicId: input.coverPublicId.trim() } : {}),
       pdfUrl: input.pdfUrl.trim(),
+      ...(input.pdfPublicId.trim() ? { pdfPublicId: input.pdfPublicId.trim() } : {}),
       status: input.status,
       isDemo: current.exists() ? Boolean(current.data().isDemo) : false,
       publishedAt: input.publishedAt ? Timestamp.fromDate(new Date(input.publishedAt)) : null,

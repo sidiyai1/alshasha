@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { CloudinaryUpload } from '../../components/CloudinaryUpload.tsx'
 import { RichTextEditor } from '../../components/RichTextEditor.tsx'
 import { Alert, Button, ConfirmDialog, Field, SelectInput, Spinner, TextArea, TextInput } from '../../components/ui.tsx'
 import { useToast } from '../../context/ToastContext.tsx'
-import { DEFAULT_CATEGORIES } from '../../data/defaults.ts'
-import { toArticleInput } from '../../lib/articles.ts'
+import { resolveCategorySelection, toArticleInput } from '../../lib/articles.ts'
 import { toDateTimeLocal } from '../../lib/dates.ts'
 import { toMessage } from '../../lib/errors.ts'
 import { usePageMeta } from '../../lib/meta.ts'
@@ -20,9 +20,10 @@ function blank(): ArticleInput {
     slug: '',
     summary: '',
     content: '<p></p>',
-    categoryId: 'siyasa',
+    categoryId: '',
     author: 'تحرير الشاشة',
     imageUrl: '',
+    imagePublicId: '',
     seoTitle: '',
     seoDescription: '',
     publishedAt: '',
@@ -38,10 +39,17 @@ export function ArticleEditorPage() {
   const navigate = useNavigate()
   const { push } = useToast()
   usePageMeta(isNew ? 'إضافة مقال' : 'تعديل مقال')
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const initial = blank()
   const [input, setInput] = useState<ArticleInput>(initial)
   const [baseline, setBaseline] = useState(() => JSON.stringify(initial))
+  const inputRef = useRef(input)
+  const baselineRef = useRef(baseline)
+  const categoriesRef = useRef<Category[]>([])
+  const categoriesReady = useRef(false)
+  inputRef.current = input
+  baselineRef.current = baseline
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
@@ -50,15 +58,69 @@ export function ArticleEditorPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const { blocker, allowLeave } = useUnsavedChanges(!loading && JSON.stringify(input) !== baseline)
 
+  const refreshCategories = useRef<() => Promise<void>>(async () => {})
+
   useEffect(() => {
     let active = true
-    listCategories()
-      .then((items) => {
-        if (active && items.length > 0) setCategories(items)
-      })
-      .catch(() => undefined)
-    if (!id) return () => {
-      active = false
+    function applyCategories(items: Category[]) {
+      const current = inputRef.current
+      const nextId = resolveCategorySelection(current.categoryId, items, !id)
+      const next = nextId === current.categoryId ? current : { ...current, categoryId: nextId }
+      categoriesRef.current = items
+      categoriesReady.current = true
+      setCategories(items)
+      if (next !== current) {
+        inputRef.current = next
+        if (JSON.stringify(current) === baselineRef.current) {
+          const saved = JSON.stringify(next)
+          baselineRef.current = saved
+          setBaseline(saved)
+        }
+        setInput(next)
+      }
+      if (id && current.categoryId && !nextId) {
+        setErrors((existing) => ({
+          ...existing,
+          categoryId: 'القسم المحدد لم يعد موجوداً. اختاروا قسماً من القائمة.',
+        }))
+      } else if (nextId) {
+        setErrors((existing) => {
+          if (existing.categoryId !== 'القسم المحدد لم يعد موجوداً. اختاروا قسماً من القائمة.') return existing
+          const nextErrors = { ...existing }
+          delete nextErrors.categoryId
+          return nextErrors
+        })
+      }
+    }
+    async function refresh() {
+      try {
+        const items = await listCategories()
+        if (!active) return
+        applyCategories(items)
+        setErrors((existing) => {
+          if (!existing.categories) return existing
+          const next = { ...existing }
+          delete next.categories
+          return next
+        })
+      } catch (reason: unknown) {
+        if (!active) return
+        setErrors((existing) => ({ ...existing, categories: toMessage(reason) }))
+      } finally {
+        if (active) setCategoriesLoading(false)
+      }
+    }
+    refreshCategories.current = refresh
+    void refresh()
+    function onVisible() {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    if (!id) {
+      return () => {
+        active = false
+        document.removeEventListener('visibilitychange', onVisible)
+      }
     }
     getArticle(id)
       .then((article) => {
@@ -68,9 +130,21 @@ export function ArticleEditorPage() {
           setLoading(false)
           return
         }
-        const next = toArticleInput(article)
+        const loaded = toArticleInput(article)
+        const nextId = categoriesReady.current
+          ? resolveCategorySelection(loaded.categoryId, categoriesRef.current, false)
+          : loaded.categoryId
+        const next = { ...loaded, categoryId: nextId }
+        inputRef.current = next
+        baselineRef.current = JSON.stringify(next)
         setInput(next)
         setBaseline(JSON.stringify(next))
+        if (loaded.categoryId && !nextId) {
+          setErrors((existing) => ({
+            ...existing,
+            categoryId: 'القسم المحدد لم يعد موجوداً. اختاروا قسماً من القائمة.',
+          }))
+        }
         setSlugEdited(true)
         setReady(true)
         setLoading(false)
@@ -82,6 +156,7 @@ export function ArticleEditorPage() {
       })
     return () => {
       active = false
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [id])
 
@@ -152,8 +227,34 @@ export function ArticleEditorPage() {
         ) : null}
       </Field>
       <div className="grid gap-4 md:grid-cols-2">
-        <Field label="القسم" error={errors.categoryId}>
-          <SelectInput value={input.categoryId} onChange={(event) => setInput({ ...input, categoryId: event.target.value })}>
+        <Field
+          label="القسم"
+          error={errors.categoryId || errors.categories}
+          hint={
+            categoriesLoading
+              ? 'جارٍ تحميل الأقسام'
+              : categories.length === 0
+                ? 'لا توجد أقسام محفوظة. أنشئوا قسماً أولاً، ثم افتحوا هذه القائمة مرة أخرى.'
+                : undefined
+          }
+        >
+          <SelectInput
+            value={input.categoryId}
+            onFocus={() => void refreshCategories.current()}
+            onChange={(event) => {
+              setInput({ ...input, categoryId: event.target.value })
+              setErrors((existing) => {
+                if (!existing.categoryId && !existing.categories) return existing
+                const nextErrors = { ...existing }
+                delete nextErrors.categoryId
+                delete nextErrors.categories
+                return nextErrors
+              })
+            }}
+          >
+            <option value="" disabled>
+              اختاروا القسم
+            </option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
@@ -165,12 +266,23 @@ export function ArticleEditorPage() {
           <TextInput value={input.author} onChange={(event) => setInput({ ...input, author: event.target.value })} />
         </Field>
       </div>
+      <CloudinaryUpload
+        label="رفع صورة المقال"
+        hint="JPG أو PNG أو WebP، وبحد 8 ميغابايت. يُحفظ الرابط فقط في Firestore."
+        type="image"
+        onUploaded={(asset) => setInput((current) => ({ ...current, imageUrl: asset.url, imagePublicId: asset.publicId }))}
+      />
       <Field
         label="رابط الصورة"
-        hint="الرفع المباشر غير مفعّل. الصقوا رابط https لصورة مستضافة خارجياً. لا يُحفظ الملف داخل Firestore."
+        hint="يمكنكم رفع الصورة أو لصق رابط https. لا يُحفظ الملف داخل Firestore."
         error={errors.imageUrl}
       >
-        <TextInput value={input.imageUrl} onChange={(event) => setInput({ ...input, imageUrl: event.target.value })} inputMode="url" dir="ltr" />
+        <TextInput
+          value={input.imageUrl}
+          onChange={(event) => setInput({ ...input, imageUrl: event.target.value, imagePublicId: '' })}
+          inputMode="url"
+          dir="ltr"
+        />
       </Field>
       {isSafeMediaUrl(input.imageUrl.trim()) ? (
         <img src={input.imageUrl.trim()} alt="" className="max-h-64 w-full border border-brand-line bg-white object-contain" />

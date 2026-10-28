@@ -1,29 +1,47 @@
 import { Link, useOutletContext } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { ArticleCard } from '../components/ArticleCard.tsx'
+import { useEffect, useMemo, useState } from 'react'
 import { BreakingTicker } from '../components/BreakingTicker.tsx'
+import { CategoryBands } from '../components/CategoryBands.tsx'
 import { EditionCard } from '../components/EditionCard.tsx'
+import { FeaturedStories } from '../components/FeaturedStories.tsx'
+import { HomeSidebar } from '../components/HomeSidebar.tsx'
+import { LatestNews } from '../components/LatestNews.tsx'
+import { pageShell } from '../components/PageFrame.tsx'
 import type { PublicContext } from '../components/PublicLayout.tsx'
-import { Alert, DemoBadge, EmptyState, SectionTitle, Spinner } from '../components/ui.tsx'
-import { formatArabicDate } from '../lib/dates.ts'
-import { usePageMeta } from '../lib/meta.ts'
+import { SecondaryStories } from '../components/SecondaryStories.tsx'
+import { Alert, EmptyState, SectionTitle, Spinner } from '../components/ui.tsx'
+import { LIMITS } from '../config.ts'
 import { toMessage } from '../lib/errors.ts'
-import { getHomeStories } from '../services/content.ts'
-import type { HomeStories } from '../types.ts'
+import { selectCategoryStories } from '../lib/home.ts'
+import { usePageMeta } from '../lib/meta.ts'
+import { getHomeStories, listPublishedArticles } from '../services/content.ts'
+import type { Article, Category, HomeStories, PageCursor } from '../types.ts'
 
 export function HomePage() {
   usePageMeta('الشاشة', 'الشاشة صحيفة عربية. آخر الأخبار والأرشيف والتحقيقات.')
   const { settings, categories, ready } = useOutletContext<PublicContext>()
   const [stories, setStories] = useState<HomeStories | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [extra, setExtra] = useState<Article[]>([])
+  const [cursor, setCursor] = useState<PageCursor | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [moreError, setMoreError] = useState<string | null>(null)
+  const [bands, setBands] = useState<{ category: Category; articles: Article[] }[] | null>(null)
   const featuredKey = settings.featuredArticleIds.join('|')
+  const categoryKey = categories.map((category) => `${category.id}:${category.slug}:${category.order}`).join('|')
 
   useEffect(() => {
     if (!ready) return
     let active = true
     getHomeStories(settings.featuredArticleIds)
       .then((value) => {
-        if (active) setStories(value)
+        if (!active) return
+        setStories(value)
+        setExtra([])
+        setCursor(value.latestCursor)
+        setHasMore(value.latestHasMore)
+        setMoreError(null)
       })
       .catch((reason: unknown) => {
         if (active) setError(toMessage(reason))
@@ -33,100 +51,124 @@ export function HomePage() {
     }
   }, [ready, featuredKey, settings.featuredArticleIds])
 
-  if (error) return <Alert tone="error">{error}</Alert>
-  if (!stories) return <Spinner label="جارٍ تحميل الصفحة الرئيسية" />
+  useEffect(() => {
+    if (!ready || categories.length === 0) {
+      setBands([])
+      return
+    }
+    let active = true
+    const ordered = [...categories].sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, 'ar'))
+    Promise.all(
+      ordered.map(async (category) => {
+        try {
+          const page = await listPublishedArticles({ categorySlug: category.slug, limit: 6 })
+          return { category, articles: page.items }
+        } catch {
+          return { category, articles: [] as Article[] }
+        }
+      }),
+    ).then((groups) => {
+      if (active) setBands(groups)
+    })
+    return () => {
+      active = false
+    }
+  }, [ready, categoryKey, categories])
 
-  const featured = stories.featured
+  const reserved = useMemo(() => {
+    if (!stories) return new Set<string>()
+    return new Set([...stories.slides, ...stories.side].map((article) => article.id))
+  }, [stories])
+
+  const sections = useMemo(() => {
+    if (!bands) return []
+    return bands
+      .map((band) => ({
+        category: band.category,
+        articles: selectCategoryStories(band.articles, reserved),
+      }))
+      .filter((band) => band.articles.length > 0)
+  }, [bands, reserved])
+
+  async function loadMore() {
+    if (!cursor || !stories) return
+    setLoadingMore(true)
+    setMoreError(null)
+    try {
+      const page = await listPublishedArticles({ cursor, limit: LIMITS.homeLatest })
+      setExtra((current) => {
+        const seen = new Set([...stories.slides, ...stories.side, ...stories.latest, ...current].map((article) => article.id))
+        return [...current, ...page.items.filter((article) => !seen.has(article.id))]
+      })
+      setCursor(page.nextCursor)
+      setHasMore(page.hasMore)
+    } catch (reason) {
+      setMoreError(toMessage(reason))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  if (error) {
+    return (
+      <div className={`${pageShell} py-6`}>
+        <Alert tone="error">{error}</Alert>
+      </div>
+    )
+  }
+  if (!stories) {
+    return (
+      <div className={`${pageShell} py-6`}>
+        <Spinner label="جارٍ تحميل الصفحة الرئيسية" />
+      </div>
+    )
+  }
+
+  const latest = [...stories.latest, ...extra]
+  const headlines = [...stories.latest, ...stories.side].slice(0, 7)
+  const edition = stories.editions[0] ?? null
+  const showSidebar = headlines.length > 0 || Boolean(edition)
 
   return (
-    <div className="space-y-12">
+    <div>
+      <h1 className="sr-only">الشاشة</h1>
       <BreakingTicker articles={stories.breaking} />
-      {featured ? (
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(16rem,0.9fr)]">
-          <article className="border border-brand-line bg-white">
-            <div className="space-y-4 p-5 md:p-7">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-brand-green">
-                <Link to={`/category/${featured.categorySlug}`}>{featured.categoryName}</Link>
-                {featured.isDemo ? <DemoBadge /> : null}
-              </div>
-              <h1 className="text-3xl font-extrabold leading-snug text-brand-ink md:text-5xl">
-                <Link to={`/article/${featured.slug}`}>{featured.title}</Link>
-              </h1>
-              <p className="font-body text-lg leading-9 text-brand-muted">{featured.summary}</p>
-              <p className="text-sm text-brand-muted">
-                {featured.author}
-                {featured.publishedAt ? ` · ${formatArabicDate(featured.publishedAt)}` : ''}
-              </p>
-            </div>
-            {featured.imageUrl ? (
-              <img src={featured.imageUrl} alt="" className="aspect-[16/9] w-full bg-brand-cream object-contain" />
-            ) : null}
-          </article>
-          <aside className="border border-brand-line">
-            <h2 className="border-b border-brand-line bg-brand-cream px-4 py-3 text-lg font-extrabold text-brand-green">
-              في الواجهة
-            </h2>
-            <ul>
-              {stories.side.map((article) => (
-                <li key={article.id} className="border-b border-brand-line px-4 py-4 last:border-b-0">
-                  <p className="text-sm font-bold text-brand-green">{article.categoryName}</p>
-                  <Link to={`/article/${article.slug}`} className="mt-1 block text-lg font-extrabold leading-snug hover:text-brand-green">
-                    {article.title}
+      <div className={`${pageShell} space-y-8 py-4 lg:space-y-10 lg:py-6`}>
+        {stories.slides.length > 0 ? (
+          <FeaturedStories slides={stories.slides} />
+        ) : (
+          <EmptyState title="لا أخبار منشورة بعد" body="حين ينشر فريق التحرير أول خبر سيظهر هنا." />
+        )}
+        <SecondaryStories articles={stories.side} />
+        <div className={`grid items-start gap-8 ${showSidebar ? 'lg:grid-cols-[minmax(0,7fr)_minmax(16rem,3fr)]' : ''}`}>
+          <div className="min-w-0 space-y-10">
+            <LatestNews articles={latest} hasMore={hasMore} loading={loadingMore} onMore={() => void loadMore()} />
+            {moreError ? <Alert tone="error">{moreError}</Alert> : null}
+            <CategoryBands sections={sections} />
+            <section aria-labelledby="paper-heading">
+              <SectionTitle
+                id="paper-heading"
+                title="النسخة الورقية"
+                action={
+                  <Link className="mb-2 text-sm font-bold text-brand-green hover:text-brand-gold" to="/archive">
+                    كل الأعداد
                   </Link>
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </section>
-      ) : (
-        <EmptyState title="لا أخبار منشورة بعد" body="حين ينشر فريق التحرير أول خبر سيظهر هنا." />
-      )}
-
-      <section>
-        <SectionTitle title="آخر الأخبار" action={<Link className="text-sm font-bold text-brand-green" to="/search">بحث</Link>} />
-        {stories.latest.length === 0 ? (
-          <EmptyState title="لا مواد حديثة" body="ستظهر هنا الأخبار بعد نشرها." />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {stories.latest.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
+                }
+              />
+              {stories.editions.length === 0 ? (
+                <EmptyState title="لا أعداد منشورة" body="ستظهر أغلفة الأعداد هنا بعد إضافتها من لوحة الإدارة." />
+              ) : (
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+                  {stories.editions.map((item) => (
+                    <EditionCard key={item.id} edition={item} />
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        )}
-      </section>
-
-      <section>
-        <SectionTitle title="الأقسام" />
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.filter((category) => category.showInNav).map((category) => (
-            <Link key={category.id} to={`/category/${category.slug}`} className="border border-brand-line p-4 hover:border-brand-green">
-              <h3 className="text-xl font-extrabold text-brand-green">{category.name}</h3>
-              <p className="mt-2 text-sm leading-7 text-brand-muted">{category.description}</p>
-            </Link>
-          ))}
+          <HomeSidebar headlines={headlines} edition={edition} />
         </div>
-      </section>
-
-      <section>
-        <SectionTitle
-          title="أرشيف الجريدة"
-          action={
-            <Link className="text-sm font-bold text-brand-green" to="/archive">
-              كل الأعداد
-            </Link>
-          }
-        />
-        <p className="mb-4 text-brand-muted">أحدث الإصدارات</p>
-        {stories.editions.length === 0 ? (
-          <EmptyState title="لا أعداد منشورة" body="ستظهر أغلفة الأعداد هنا بعد إضافتها من لوحة الإدارة." />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {stories.editions.map((edition) => (
-              <EditionCard key={edition.id} edition={edition} />
-            ))}
-          </div>
-        )}
-      </section>
+      </div>
     </div>
   )
 }

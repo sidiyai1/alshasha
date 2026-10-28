@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { PageFrame } from '../components/PageFrame.tsx'
 import type { PublicContext } from '../components/PublicLayout.tsx'
 import { Alert, Button, Field, TextArea, TextInput } from '../components/ui.tsx'
 import { toMessage } from '../lib/errors.ts'
@@ -37,6 +38,7 @@ export function ContactPage() {
   }
 
   return (
+    <PageFrame>
     <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
       <div>
         <h1 className="text-4xl font-extrabold text-brand-green">اتصل بنا</h1>
@@ -105,5 +107,6 @@ export function ContactPage() {
         )}
       </div>
     </div>
+    </PageFrame>
   )
 }
